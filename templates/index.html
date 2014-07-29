@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html ng-app="DemoApp">
+<head>
+	<title>Demo App</title>
+</head>
+<body ng-controller="MainController" ng-init="Connect()">
+
+<div>
+	<div ng-repeat="m in messages">[[m.author]]: [[m.text]]</div>
+</div>
+<div>
+	<form method="POST" ng-submit="sendMessage()" onsubmit="return false;">
+		<input type="text" ng-model="author" />
+		<input type="text" ng-model="message_text" />
+		<input type="submit" value="send">
+	</form>
+</div>
+
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.21/angular.min.js"></script>
+<script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
+<script type="text/javascript">
+	
+var app = angular.module('DemoApp', [])
+app.config(function($interpolateProvider){
+    $interpolateProvider.startSymbol('[[')
+    $interpolateProvider.endSymbol(']]')
+})
+
+function MainController($scope, $http){
+	$scope.messages = []
+	$scope.author = 'anonymous'
+	$scope.connection = null
+	$scope.channel = "default-channel"
+
+	$scope.buildMessageString = function(data){
+		data.stream_name = $scope.stream_name
+		return JSON.stringify(data)
+	}
+
+	$scope.sendMessage = function(){
+		var text = $scope.message_text
+		$scope.message_text = ''
+
+		$scope.send({'method': 'broadcast', 'data': {'text': text, 'author': $scope.author}})
+	}
+
+	$scope.send = function(data){
+		console.log('sending:', data)
+		$scope.connection.send(JSON.stringify(data))
+	}
+
+	$scope.Connect = function(){
+		$scope.connection = new SockJS('/pubsub', '')
+		$scope.connection.onopen = function(){
+			console.log('Connected')
+			$scope.send({'method': 'set-channel', 'data': {'channel': $scope.channel}})
+		}
+		$scope.connection.onmessage = function(e) {
+			var message = JSON.parse(e.data)
+          	$scope.$apply(function(){
+				$scope.messages.push(message)
+          	})          	
+        }
+        $scope.connection.onclose = function() {
+          console.log('Disconnected');
+          $scope.connection = null;
+        }
+	}
+}
+
+
+</script>
+</body>
+</html>
